@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GitHub-like Markdown Viewer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Render local Markdown files with a GitHub-like reading experience.",
   "content_scripts": [
     {
