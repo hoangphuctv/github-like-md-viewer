@@ -1,10 +1,14 @@
 (() => {
   "use strict";
 
+  const NL = String.fromCharCode(10);
+  const CR = String.fromCharCode(13);
+  const BS = String.fromCharCode(92);
+
+  const getSource = () => (document.body ? document.body.textContent : "");
+
   const start = () => {
-    // Chrome's file viewer exposes the original Markdown as document text.
-    // Wait until the generated document body exists before capturing it.
-    const source = document.body ? document.body.textContent : "";
+    const source = getSource();
     if (!source.trim()) return;
 
   const escapeHtml = (value) =>
@@ -29,7 +33,7 @@
 
     let html = text;
 
-    html = html.replace(/`([^`\n]+)`/g, (_, code) =>
+    html = html.replace(/`([^`]+)`/g, (_, code) =>
       preserve(`<code>${escapeHtml(code)}</code>`));
 
     html = html.replace(/<\/?[A-Za-z][^>]*>/g, (tag) => preserve(tag));
@@ -42,11 +46,11 @@
     html = html.replace(/\[([^\]]+)\]\((\S+?)(?:\s+&quot;([^&]*)&quot;)?\)/g,
       (_, label, url, title) =>
         `<a href="${escapeAttribute(url)}"${title ? ` title="${title}"` : ""}>${label}</a>`);
-    html = html.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
-    html = html.replace(/__([^_\n]+)__/g, "<strong>$1</strong>");
-    html = html.replace(/~~([^~\n]+)~~/g, "<del>$1</del>");
-    html = html.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "<em>$1</em>");
-    html = html.replace(/(?<!_)_([^_\n]+)_(?!_)/g, "<em>$1</em>");
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+    html = html.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+    html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>");
+    html = html.replace(/(?<!_)_([^_]+)_(?!_)/g, "<em>$1</em>");
 
     return html.replace(/\u0000(\d+)\u0000/g, (_, index) => preserved[Number(index)]);
   };
@@ -82,8 +86,11 @@
       "</table>";
   };
 
+  const FENCE_OPEN = /^ {0,3}(`{3,})(.*)$/;
+  const FENCE_CLOSE = /^ {0,3}(`{3,})\s*$/;
+
   const renderMarkdown = (markdown) => {
-    const lines = markdown.replace(/\r\n?/g, "\n").split("\n");
+    const lines = markdown.replace(new RegExp(CR + "?" + NL, "g"), NL).split(NL);
     const output = [];
     let paragraph = [];
     let list = null;
@@ -91,12 +98,13 @@
     let quote = [];
     let inCode = false;
     let codeLanguage = "";
+    let codeFenceLength = 0;
     let codeLines = [];
     let i = 0;
 
     const flushParagraph = () => {
       if (!paragraph.length) return;
-      output.push(`<p>${inlineMarkdown(paragraph.join("\n")).replace(/\n/g, "<br>")}</p>`);
+      output.push(`<p>${inlineMarkdown(paragraph.join(NL)).replace(new RegExp(NL, "g"), "<br>")}</p>`);
       paragraph = [];
     };
 
@@ -110,19 +118,28 @@
 
     const flushQuote = () => {
       if (!quote.length) return;
-      output.push(`<blockquote>${renderMarkdown(quote.join("\n"))}</blockquote>`);
+      output.push(`<blockquote>${renderMarkdown(quote.join(NL))}</blockquote>`);
       quote = [];
+    };
+
+    const flushAll = () => {
+      flushParagraph();
+      flushList();
+      flushQuote();
     };
 
     while (i < lines.length) {
       const line = lines[i];
 
       if (inCode) {
-        if (line.trim().startsWith("```")) {
+        const closing = line.match(FENCE_CLOSE);
+        if (closing && closing[1].length >= codeFenceLength) {
           const language = codeLanguage;
           const className = language ? ` class="language-${escapeAttribute(language)}"` : "";
-          output.push(`<pre><code${className}>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+          output.push(`<pre><code${className}>${escapeHtml(codeLines.join(NL))}</code></pre>`);
           inCode = false;
+          codeLanguage = "";
+          codeFenceLength = 0;
           codeLines = [];
         } else {
           codeLines.push(line);
@@ -131,13 +148,12 @@
         continue;
       }
 
-      const fence = line.match(/^\s*```(.*)$/);
+      const fence = line.match(FENCE_OPEN);
       if (fence) {
-        flushParagraph();
-        flushList();
-        flushQuote();
+        flushAll();
         inCode = true;
-        codeLanguage = fence[1].trim();
+        codeFenceLength = fence[1].length;
+        codeLanguage = fence[2].trim().replace(/^`+/, "");
         codeLines = [];
         i++;
         continue;
@@ -148,9 +164,7 @@
         line.includes("|") &&
         isTableSeparator(lines[i + 1])
       ) {
-        flushParagraph();
-        flushList();
-        flushQuote();
+        flushAll();
         const tableLines = [line, lines[i + 1]];
         i += 2;
         while (i < lines.length && lines[i].includes("|") && lines[i].trim()) {
@@ -163,9 +177,7 @@
 
       const heading = line.match(/^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/);
       if (heading) {
-        flushParagraph();
-        flushList();
-        flushQuote();
+        flushAll();
         const level = heading[1].length;
         output.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
         i++;
@@ -173,9 +185,7 @@
       }
 
       if (/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
-        flushParagraph();
-        flushList();
-        flushQuote();
+        flushAll();
         output.push("<hr>");
         i++;
         continue;
@@ -230,13 +240,13 @@
       if (indentedCode) {
         flushParagraph();
         flushQuote();
-        const codeLines = [];
+        const block = [];
         while (i < lines.length && (lines[i].startsWith("    ") || !lines[i].trim())) {
-          codeLines.push(lines[i].startsWith("    ") ? lines[i].slice(4) : "");
+          block.push(lines[i].startsWith("    ") ? lines[i].slice(4) : "");
           i++;
         }
-        while (codeLines.length && !codeLines[codeLines.length - 1]) codeLines.pop();
-        output.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+        while (block.length && !block[block.length - 1]) block.pop();
+        output.push(`<pre><code>${escapeHtml(block.join(NL))}</code></pre>`);
         continue;
       }
 
@@ -244,11 +254,14 @@
       i++;
     }
 
-    flushParagraph();
-    flushList();
-    flushQuote();
+    flushAll();
+    if (inCode) {
+      const language = codeLanguage;
+      const className = language ? ` class="language-${escapeAttribute(language)}"` : "";
+      output.push(`<pre><code${className}>${escapeHtml(codeLines.join(NL))}</code></pre>`);
+    }
 
-    return output.join("\n");
+    return output.join(NL);
   };
 
   const createThemeToggle = () => {
