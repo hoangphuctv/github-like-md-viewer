@@ -264,34 +264,70 @@
     return output.join(NL);
   };
 
-  const createThemeToggle = () => {
+  const THEME_KEY = "mdv-theme";
+
+  const readTheme = () =>
+    new Promise((resolve) => {
+      try {
+        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.get(THEME_KEY, (result) => {
+            resolve(result && result[THEME_KEY] === "dark");
+          });
+          return;
+        }
+      } catch (e) {}
+      try {
+        resolve(localStorage.getItem(THEME_KEY) === "dark");
+      } catch (e) {
+        resolve(false);
+      }
+    });
+
+  const writeTheme = (dark) => {
+    const value = dark ? "dark" : "light";
+    try {
+      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ [THEME_KEY]: value });
+        return;
+      }
+    } catch (e) {}
+    try {
+      localStorage.setItem(THEME_KEY, value);
+    } catch (e) {}
+  };
+
+  const applyThemeToButton = (button, dark) => {
+    button.textContent = dark ? "☀" : "☾";
+    button.setAttribute(
+      "aria-label",
+      dark ? "Switch to light mode" : "Switch to dark mode"
+    );
+    button.setAttribute(
+      "title",
+      dark ? "Switch to light mode" : "Switch to dark mode"
+    );
+  };
+
+  const createThemeToggle = (dark) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "markdown-theme-toggle";
-    button.textContent = "☾";
-    button.setAttribute("aria-label", "Switch to dark mode");
-    button.setAttribute("title", "Switch to dark mode");
+    applyThemeToButton(button, dark);
 
     button.addEventListener("click", () => {
-      const dark = document.documentElement.classList.toggle("markdown-dark");
-      button.textContent = dark ? "☀" : "☾";
-      button.setAttribute(
-        "aria-label",
-        dark ? "Switch to light mode" : "Switch to dark mode"
-      );
-      button.setAttribute(
-        "title",
-        dark ? "Switch to light mode" : "Switch to dark mode"
-      );
+      const next = document.documentElement.classList.toggle("markdown-dark");
+      applyThemeToButton(button, next);
+      writeTheme(next);
     });
 
     document.body.appendChild(button);
   };
 
-  const title = document.title || location.pathname.split("/").pop() || "Markdown";
-  document.open();
-  document.write(`<!doctype html>
-<html>
+  const render = (dark) => {
+    const title = document.title || location.pathname.split("/").pop() || "Markdown";
+    document.open();
+    document.write(`<!doctype html>
+<html${dark ? ' class="markdown-dark"' : ""}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -302,7 +338,10 @@
 </body>
 </html>`);
     document.close();
-    createThemeToggle();
+    createThemeToggle(dark);
+  };
+
+  readTheme().then(render);
   };
 
   if (document.body) {
