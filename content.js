@@ -89,7 +89,8 @@
     let list = null;
     let listItems = [];
     let quote = [];
-    let code = null;
+    let inCode = false;
+    let codeLanguage = "";
     let codeLines = [];
     let i = 0;
 
@@ -116,12 +117,12 @@
     while (i < lines.length) {
       const line = lines[i];
 
-      if (code) {
+      if (inCode) {
         if (line.trim().startsWith("```")) {
-          const language = code.trim();
+          const language = codeLanguage;
           const className = language ? ` class="language-${escapeAttribute(language)}"` : "";
           output.push(`<pre><code${className}>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
-          code = null;
+          inCode = false;
           codeLines = [];
         } else {
           codeLines.push(line);
@@ -135,7 +136,8 @@
         flushParagraph();
         flushList();
         flushQuote();
-        code = fence[1].trim();
+        inCode = true;
+        codeLanguage = fence[1].trim();
         codeLines = [];
         i++;
         continue;
