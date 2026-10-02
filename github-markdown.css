@@ -284,3 +284,223 @@ html.markdown-dark .markdown-theme-toggle:hover {
     font-size: 14px;
   }
 }
+
+
+/* TOC Drawer / Sidebar Styles */
+.markdown-toc {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 260px;
+  max-height: calc(100vh - 40px);
+  background: #ffffff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  transition: width 0.2s ease, padding 0.2s ease;
+  overflow: hidden;
+}
+
+.markdown-toc.collapsed {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+}
+
+.markdown-toc.collapsed .markdown-toc-list,
+.markdown-toc.collapsed .markdown-toc-title {
+  display: none;
+}
+
+.markdown-toc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #1f2328;
+}
+
+.markdown-toc-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #656d76;
+  border-radius: 4px;
+}
+
+.markdown-toc-toggle:hover {
+  background: #f3f4f6;
+  color: #1f2328;
+}
+
+.markdown-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 100px);
+}
+
+.markdown-toc-item {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+
+.markdown-toc-item a {
+  color: #656d76;
+  text-decoration: none;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-left: 2px solid transparent;
+  padding-left: 8px;
+}
+
+.markdown-toc-item a:hover {
+  color: #0969da;
+}
+
+.markdown-toc-item a.active {
+  color: #0969da;
+  font-weight: 600;
+  border-left-color: #0969da;
+}
+
+.markdown-toc-h1 { padding-left: 0px; font-weight: 600; }
+.markdown-toc-h2 { padding-left: 10px; }
+.markdown-toc-h3 { padding-left: 20px; }
+.markdown-toc-h4 { padding-left: 30px; }
+.markdown-toc-h5 { padding-left: 40px; }
+.markdown-toc-h6 { padding-left: 50px; }
+
+/* Dark mode TOC */
+html.markdown-dark .markdown-toc {
+  background: #161b22;
+  border-color: #30363d;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+html.markdown-dark .markdown-toc-header {
+  color: #f0f6fc;
+}
+
+html.markdown-dark .markdown-toc-toggle {
+  color: #8b949e;
+}
+
+html.markdown-dark .markdown-toc-toggle:hover {
+  background: #21262d;
+  color: #f0f6fc;
+}
+
+html.markdown-dark .markdown-toc-item a {
+  color: #8b949e;
+}
+
+html.markdown-dark .markdown-toc-item a:hover {
+  color: #2f81f7;
+}
+
+html.markdown-dark .markdown-toc-item a.active {
+  color: #2f81f7;
+  border-left-color: #2f81f7;
+}
+
+/* TOC sits on the top-left; theme toggle stays top-right */
+.markdown-toc {
+  top: 20px;
+  max-height: calc(100vh - 40px);
+}
+
+.markdown-toc-header {
+  gap: 8px;
+}
+
+.markdown-toc-item a {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.markdown-toc-list {
+  max-height: calc(100vh - 140px);
+  scrollbar-width: thin;
+}
+
+.markdown-toc-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.markdown-toc-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, .18);
+  border-radius: 3px;
+}
+
+html.markdown-dark .markdown-toc-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, .2);
+}
+
+.markdown-toc.collapsed {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 20px;
+}
+
+.markdown-toc.collapsed .markdown-toc-header {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+
+.markdown-toc.collapsed .markdown-toc-toggle {
+  width: 100%;
+  height: 100%;
+  font-size: 18px;
+  color: #1f2328;
+}
+
+html.markdown-dark .markdown-toc.collapsed .markdown-toc-toggle {
+  color: #e6edf3;
+}
+
+/* Small screens: keep TOC accessible as a floating panel */
+@media (max-width: 1024px) {
+  .markdown-toc:not(.collapsed) {
+    left: 12px;
+    top: 20px;
+    width: min(280px, calc(100vw - 24px));
+    max-height: calc(100vh - 40px);
+  }
+}
+
+/* Print: hide floating chrome, widen body */
+@media print {
+  .markdown-toc,
+  .markdown-theme-toggle {
+    display: none !important;
+  }
+  .markdown-body {
+    max-width: none;
+    padding: 0;
+  }
+}

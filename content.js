@@ -1,18 +1,13 @@
 (() => {
   "use strict";
 
-  const NL = String.fromCharCode(10);
-  const CR = String.fromCharCode(13);
-  const BS = String.fromCharCode(92);
+  const THEME_KEY = "mdv-theme";
+  const TOC_KEY = "mdv-toc-collapsed";
 
   const getSource = () => (document.body ? document.body.textContent : "");
 
-  const start = () => {
-    const source = getSource();
-    if (!source.trim()) return;
-
   const escapeHtml = (value) =>
-    value.replace(/[&<>"']/g, (char) => ({
+    String(value).replace(/[&<>"']/g, (char) => ({
       "&": "&amp;",
       "<": "&lt;",
       ">": "&gt;",
@@ -20,251 +15,230 @@
       "'": "&#39;"
     }[char]));
 
-  const escapeAttribute = (value) =>
-    escapeHtml(value).replace(/`/g, "&#96;");
+  const resolveUrl = (raw) => {
+    if (!raw) return raw;
+    const value = String(raw).trim();
+    if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith("//") || value.startsWith("#")) {
+      return value;
+    }
+    try {
+      return new URL(value, location.href).href;
+    } catch (e) {
+      return value;
+    }
+  };
 
-  const inlineMarkdown = (text) => {
-    const preserved = [];
-    const preserve = (value) => {
-      const token = `\u0000${preserved.length}\u0000`;
-      preserved.push(value);
-      return token;
+  // --- Slug helpers ---
+  const slugify = (text) =>
+    String(text)
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^\w\u00C0-\u024F\u1E00-\u1EFF-]/g, "")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "section";
+
+  const assignHeadingIds = (root) => {
+    const used = Object.create(null);
+    const headings = root.querySelectorAll("h1, h2, h3, h4, h5, h6");
+    headings.forEach((h) => {
+      if (h.id) {
+        used[h.id] = (used[h.id] || 0) + 1;
+        return;
+      }
+      const base = slugify(h.textContent || "");
+      let id = base;
+      let n = 1;
+      while (used[id]) {
+        n += 1;
+        id = base + "-" + n;
+      }
+      used[id] = 1;
+      h.id = id;
+    });
+    return Array.from(headings);
+  };
+
+  // --- TOC ---
+  const buildToc = (main) => {
+    const headings = main.querySelectorAll("h1, h2, h3, h4, h5, h6");
+    if (headings.length < 2) return null;
+
+    const nav = document.createElement("nav");
+    nav.className = "markdown-toc";
+    nav.setAttribute("aria-label", "Table of contents");
+
+    const header = document.createElement("div");
+    header.className = "markdown-toc-header";
+
+    const title = document.createElement("span");
+    title.className = "markdown-toc-title";
+    title.textContent = "Contents";
+    header.appendChild(title);
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "markdown-toc-toggle";
+    toggle.setAttribute("aria-label", "Collapse table of contents");
+    toggle.setAttribute("title", "Collapse table of contents");
+    toggle.textContent = "\u00AB"; // «
+    header.appendChild(toggle);
+
+    nav.appendChild(header);
+
+    const list = document.createElement("ul");
+    list.className = "markdown-toc-list";
+
+    const linkById = new Map();
+
+    const setActive = (id) => {
+      linkById.forEach((a, key) => {
+        if (key === id) a.classList.add("active");
+        else a.classList.remove("active");
+      });
     };
 
-    let html = text;
+    headings.forEach((h) => {
+      const level = Number(h.tagName.slice(1));
+      const li = document.createElement("li");
+      li.className = "markdown-toc-item markdown-toc-h" + level;
 
-    html = html.replace(/`([^`]+)`/g, (_, code) =>
-      preserve(`<code>${escapeHtml(code)}</code>`));
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.textContent = h.textContent || "";
+      a.title = h.textContent || "";
 
-    html = html.replace(/<\/?[A-Za-z][^>]*>/g, (tag) => preserve(tag));
+      a.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        const target = document.getElementById(h.id);
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        history.replaceState(null, "", "#" + h.id);
+        setActive(h.id);
+      });
 
-    html = escapeHtml(html);
-
-    html = html.replace(/!\[([^\]]*)\]\((\S+?)(?:\s+&quot;([^&]*)&quot;)?\)/g,
-      (_, alt, url, title) =>
-        `<img src="${escapeAttribute(url)}" alt="${alt}"${title ? ` title="${title}"` : ""}>`);
-    html = html.replace(/\[([^\]]+)\]\((\S+?)(?:\s+&quot;([^&]*)&quot;)?\)/g,
-      (_, label, url, title) =>
-        `<a href="${escapeAttribute(url)}"${title ? ` title="${title}"` : ""}>${label}</a>`);
-    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-    html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
-    html = html.replace(/~~([^~]+)~~/g, "<del>$1</del>");
-    html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>");
-    html = html.replace(/(?<!_)_([^_]+)_(?!_)/g, "<em>$1</em>");
-
-    return html.replace(/\u0000(\d+)\u0000/g, (_, index) => preserved[Number(index)]);
-  };
-
-  const isTableSeparator = (line) =>
-    /^\s*\|?\s*:?-{1,}:?\s*(?:\|\s*:?-{1,}:?\s*)+\|?\s*$/.test(line);
-
-  const splitTableRow = (line) => {
-    let value = line.trim();
-    if (value.startsWith("|")) value = value.slice(1);
-    if (value.endsWith("|")) value = value.slice(0, -1);
-    return value.split("|").map((cell) => cell.trim());
-  };
-
-  const renderTable = (lines) => {
-    const headers = splitTableRow(lines[0]);
-    const alignments = splitTableRow(lines[1]).map((cell) => {
-      const left = cell.startsWith(":");
-      const right = cell.endsWith(":");
-      return left && right ? "center" : right ? "right" : left ? "left" : "";
+      li.appendChild(a);
+      list.appendChild(li);
+      linkById.set(h.id, a);
     });
 
-    const body = lines.slice(2).map(splitTableRow);
-    const alignment = (index) =>
-      alignments[index] ? ` style="text-align:${alignments[index]}"` : "";
+    nav.appendChild(list);
 
-    return `<table><thead><tr>${headers.map((cell, index) =>
-      `<th${alignment(index)}>${inlineMarkdown(cell)}</th>`).join("")}</tr></thead>` +
-      (body.length ? `<tbody>${body.map((row) =>
-        `<tr>${headers.map((_, index) =>
-          `<td${alignment(index)}>${inlineMarkdown(row[index] || "")}</td>`).join("")}</tr>`
-      ).join("")}</tbody>` : "") +
-      "</table>";
-  };
-
-  const FENCE_OPEN = /^ {0,3}(`{3,})(.*)$/;
-  const FENCE_CLOSE = /^ {0,3}(`{3,})\s*$/;
-
-  const renderMarkdown = (markdown) => {
-    const lines = markdown.replace(new RegExp(CR + "?" + NL, "g"), NL).split(NL);
-    const output = [];
-    let paragraph = [];
-    let list = null;
-    let listItems = [];
-    let quote = [];
-    let inCode = false;
-    let codeLanguage = "";
-    let codeFenceLength = 0;
-    let codeLines = [];
-    let i = 0;
-
-    const flushParagraph = () => {
-      if (!paragraph.length) return;
-      output.push(`<p>${inlineMarkdown(paragraph.join(NL)).replace(new RegExp(NL, "g"), "<br>")}</p>`);
-      paragraph = [];
-    };
-
-    const flushList = () => {
-      if (!list) return;
-      const tag = list === "ol" ? "ol" : "ul";
-      output.push(`<${tag}>${listItems.join("")}</${tag}>`);
-      list = null;
-      listItems = [];
-    };
-
-    const flushQuote = () => {
-      if (!quote.length) return;
-      output.push(`<blockquote>${renderMarkdown(quote.join(NL))}</blockquote>`);
-      quote = [];
-    };
-
-    const flushAll = () => {
-      flushParagraph();
-      flushList();
-      flushQuote();
-    };
-
-    while (i < lines.length) {
-      const line = lines[i];
-
-      if (inCode) {
-        const closing = line.match(FENCE_CLOSE);
-        if (closing && closing[1].length >= codeFenceLength) {
-          const language = codeLanguage;
-          const className = language ? ` class="language-${escapeAttribute(language)}"` : "";
-          output.push(`<pre><code${className}>${escapeHtml(codeLines.join(NL))}</code></pre>`);
-          inCode = false;
-          codeLanguage = "";
-          codeFenceLength = 0;
-          codeLines = [];
-        } else {
-          codeLines.push(line);
-        }
-        i++;
-        continue;
-      }
-
-      const fence = line.match(FENCE_OPEN);
-      if (fence) {
-        flushAll();
-        inCode = true;
-        codeFenceLength = fence[1].length;
-        codeLanguage = fence[2].trim().replace(/^`+/, "");
-        codeLines = [];
-        i++;
-        continue;
-      }
-
-      if (
-        i + 1 < lines.length &&
-        line.includes("|") &&
-        isTableSeparator(lines[i + 1])
-      ) {
-        flushAll();
-        const tableLines = [line, lines[i + 1]];
-        i += 2;
-        while (i < lines.length && lines[i].includes("|") && lines[i].trim()) {
-          tableLines.push(lines[i]);
-          i++;
-        }
-        output.push(renderTable(tableLines));
-        continue;
-      }
-
-      const heading = line.match(/^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/);
-      if (heading) {
-        flushAll();
-        const level = heading[1].length;
-        output.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
-        i++;
-        continue;
-      }
-
-      if (/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
-        flushAll();
-        output.push("<hr>");
-        i++;
-        continue;
-      }
-
-      const quoteLine = line.match(/^\s*>\s?(.*)$/);
-      if (quoteLine) {
-        flushParagraph();
-        flushList();
-        quote.push(quoteLine[1]);
-        i++;
-        continue;
-      }
-      if (quote.length && !line.trim()) {
-        quote.push("");
-        i++;
-        continue;
-      }
-      if (quote.length) flushQuote();
-
-      const unordered = line.match(/^\s*[-*+]\s+(.*)$/);
-      const ordered = line.match(/^\s*\d+[.)]\s+(.*)$/);
-      if (unordered || ordered) {
-        flushParagraph();
-        const nextList = ordered ? "ol" : "ul";
-        if (list && list !== nextList) flushList();
-        list = nextList;
-        let item = (unordered || ordered)[1];
-        const checked = item.match(/^\[([ xX])\]\s+(.*)$/);
-        if (checked) {
-          const isChecked = checked[1].toLowerCase() === "x";
-          item = `<input type="checkbox" disabled${isChecked ? " checked" : ""}> ${checked[2]}`;
-        }
-        listItems.push(`<li>${inlineMarkdown(item)}</li>`);
-        i++;
-        continue;
-      }
-      if (list && !line.trim()) {
-        flushList();
-        i++;
-        continue;
-      }
-      if (list) flushList();
-
-      if (!line.trim()) {
-        flushParagraph();
-        i++;
-        continue;
-      }
-
-      const indentedCode = line.match(/^ {4}(.*)$/);
-      if (indentedCode) {
-        flushParagraph();
-        flushQuote();
-        const block = [];
-        while (i < lines.length && (lines[i].startsWith("    ") || !lines[i].trim())) {
-          block.push(lines[i].startsWith("    ") ? lines[i].slice(4) : "");
-          i++;
-        }
-        while (block.length && !block[block.length - 1]) block.pop();
-        output.push(`<pre><code>${escapeHtml(block.join(NL))}</code></pre>`);
-        continue;
-      }
-
-      paragraph.push(line);
-      i++;
+    // IntersectionObserver to track visible heading
+    if (typeof IntersectionObserver !== "undefined") {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries
+            .filter((e) => e.isIntersecting)
+            .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+          if (visible.length > 0) setActive(visible[0].target.id);
+        },
+        { rootMargin: "-10% 0px -70% 0px", threshold: [0, 1] }
+      );
+      headings.forEach((h) => observer.observe(h));
     }
 
-    flushAll();
-    if (inCode) {
-      const language = codeLanguage;
-      const className = language ? ` class="language-${escapeAttribute(language)}"` : "";
-      output.push(`<pre><code${className}>${escapeHtml(codeLines.join(NL))}</code></pre>`);
+    // Collapse state
+    const applyCollapsed = (collapsed) => {
+      nav.classList.toggle("collapsed", collapsed);
+      toggle.textContent = collapsed ? "\u00BB" : "\u00AB"; // » : «
+      const label = collapsed ? "Expand table of contents" : "Collapse table of contents";
+      toggle.setAttribute("aria-label", label);
+      toggle.setAttribute("title", label);
+    };
+
+    const readCollapsed = () =>
+      new Promise((resolve) => {
+        try {
+          if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.get(TOC_KEY, (result) => {
+              resolve(!!(result && result[TOC_KEY]));
+            });
+            return;
+          }
+        } catch (e) {}
+        try {
+          resolve(localStorage.getItem(TOC_KEY) === "1");
+        } catch (e) {
+          resolve(false);
+        }
+      });
+
+    const writeCollapsed = (value) => {
+      try {
+        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.set({ [TOC_KEY]: !!value });
+          return;
+        }
+      } catch (e) {}
+      try {
+        localStorage.setItem(TOC_KEY, value ? "1" : "0");
+      } catch (e) {}
+    };
+
+    let collapsed = false;
+    readCollapsed().then((v) => {
+      collapsed = v;
+      applyCollapsed(collapsed);
+    });
+
+    toggle.addEventListener("click", () => {
+      collapsed = !collapsed;
+      applyCollapsed(collapsed);
+      writeCollapsed(collapsed);
+    });
+
+    // Nếu URL có sẵn hash thì highlight
+    if (location.hash && location.hash.length > 1) {
+      const id = decodeURIComponent(location.hash.slice(1));
+      if (linkById.has(id)) setActive(id);
     }
 
-    return output.join(NL);
+    return nav;
   };
 
-  const THEME_KEY = "mdv-theme";
+  const postProcess = (root) => {
+    assignHeadingIds(root);
+
+    root.querySelectorAll("a[href]").forEach((anchor) => {
+      const raw = anchor.getAttribute("href");
+      const resolved = resolveUrl(raw);
+      if (resolved && resolved !== raw) anchor.setAttribute("href", resolved);
+      if (/^https?:/i.test(resolved || "")) {
+        anchor.setAttribute("target", "_blank");
+        anchor.setAttribute("rel", "noopener noreferrer");
+      }
+    });
+
+    root.querySelectorAll("img[src]").forEach((img) => {
+      const raw = img.getAttribute("src");
+      const resolved = resolveUrl(raw);
+      if (resolved && resolved !== raw) img.setAttribute("src", resolved);
+      img.setAttribute("loading", "lazy");
+    });
+  };
+
+  const renderMarkdown = (source) => {
+    const markedLib = (typeof marked !== "undefined" && marked) || null;
+    if (!markedLib) {
+      return "<pre>" + escapeHtml(source) + "</pre>";
+    }
+
+    const rawHtml = markedLib.parse(source, {
+      gfm: true,
+      breaks: false,
+      headerIds: false,
+      mangle: false
+    });
+
+    const purifier = (typeof DOMPurify !== "undefined" && DOMPurify) || null;
+    if (!purifier) return rawHtml;
+
+    return purifier.sanitize(rawHtml, {
+      ADD_ATTR: ["target", "rel", "loading", "id"],
+      ALLOW_DATA_ATTR: false
+    });
+  };
 
   const readTheme = () =>
     new Promise((resolve) => {
@@ -297,15 +271,10 @@
   };
 
   const applyThemeToButton = (button, dark) => {
-    button.textContent = dark ? "☀" : "☾";
-    button.setAttribute(
-      "aria-label",
-      dark ? "Switch to light mode" : "Switch to dark mode"
-    );
-    button.setAttribute(
-      "title",
-      dark ? "Switch to light mode" : "Switch to dark mode"
-    );
+    button.textContent = dark ? "\u2600" : "\u263E"; // ☀ : ☾
+    const label = dark ? "Switch to light mode" : "Switch to dark mode";
+    button.setAttribute("aria-label", label);
+    button.setAttribute("title", label);
   };
 
   const createThemeToggle = (dark) => {
@@ -324,24 +293,48 @@
   };
 
   const render = (dark) => {
-    const title = document.title || location.pathname.split("/").pop() || "Markdown";
+    const originalTitle = document.title || location.pathname.split("/").pop() || "Markdown";
+    const source = getSource();
+    const html = renderMarkdown(source);
+
     document.open();
-    document.write(`<!doctype html>
-<html${dark ? ' class="markdown-dark"' : ""}>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${escapeHtml(title)}</title>
-</head>
-<body>
-  <main class="markdown-body">${renderMarkdown(source)}</main>
-</body>
-</html>`);
+    document.write(
+      '<!doctype html>\n' +
+        '<html' + (dark ? ' class="markdown-dark"' : "") + '>\n' +
+        "<head>\n" +
+        '  <meta charset="utf-8">\n' +
+        '  <meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+        "  <title>" + escapeHtml(originalTitle) + "</title>\n" +
+        "</head>\n" +
+        "<body>\n" +
+        '  <main class="markdown-body">' + html + "</main>\n" +
+        "</body>\n" +
+        "</html>"
+    );
     document.close();
+
+    const main = document.querySelector("main.markdown-body");
+    if (main) {
+      postProcess(main);
+      const toc = buildToc(main);
+      if (toc) document.body.appendChild(toc);
+    }
+
     createThemeToggle(dark);
+
+    // Nếu URL có hash, nhảy tới sau khi render
+    if (location.hash && location.hash.length > 1) {
+      const id = decodeURIComponent(location.hash.slice(1));
+      const target = document.getElementById(id);
+      if (target) {
+        setTimeout(() => target.scrollIntoView({ block: "start" }), 0);
+      }
+    }
   };
 
-  readTheme().then(render);
+  const start = () => {
+    if (!getSource().trim()) return;
+    readTheme().then(render);
   };
 
   if (document.body) {
