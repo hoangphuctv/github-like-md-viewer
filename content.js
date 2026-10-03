@@ -115,6 +115,8 @@
         target.scrollIntoView({ behavior: "smooth", block: "start" });
         history.replaceState(null, "", "#" + h.id);
         setActive(h.id);
+        // Đánh dấu đã chọn mục — dùng để auto-collapse khi click ra ngoài
+        nav.dataset.mdvPicked = "1";
       });
 
       li.appendChild(a);
@@ -193,6 +195,17 @@
       const id = decodeURIComponent(location.hash.slice(1));
       if (linkById.has(id)) setActive(id);
     }
+
+    // Auto-collapse khi click ra ngoài, chỉ sau khi user đã chọn 1 mục trong TOC.
+    document.addEventListener("click", (ev) => {
+      if (nav.classList.contains("collapsed")) return;
+      if (nav.contains(ev.target)) return;
+      if (!nav.dataset.mdvPicked) return;
+      collapsed = true;
+      applyCollapsed(true);
+      writeCollapsed(true);
+      delete nav.dataset.mdvPicked;
+    });
 
     return nav;
   };
