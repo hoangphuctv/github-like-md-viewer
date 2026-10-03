@@ -545,6 +545,251 @@
     return button;
   };
 
+  // --- Tiny syntax highlighter (no deps) ---
+  const KEYWORDS = {
+    js: ['const','let','var','function','return','if','else','for','while','do','switch','case','break','continue','new','this','typeof','instanceof','in','of','class','extends','super','import','export','from','as','default','try','catch','finally','throw','async','await','yield','delete','void','null','undefined','true','false'],
+    ts: ['const','let','var','function','return','if','else','for','while','do','switch','case','break','continue','new','this','typeof','instanceof','in','of','class','extends','super','import','export','from','as','default','try','catch','finally','throw','async','await','yield','delete','void','null','undefined','true','false','interface','type','enum','namespace','public','private','protected','readonly','implements','declare'],
+    py: ['def','class','return','if','elif','else','for','while','break','continue','import','from','as','try','except','finally','raise','with','lambda','yield','global','nonlocal','pass','and','or','not','in','is','None','True','False','self','async','await'],
+    sh: ['if','then','else','elif','fi','for','while','do','done','case','esac','function','return','exit','export','local','echo','cd','set','unset'],
+    go: ['package','import','func','return','if','else','for','range','switch','case','break','continue','var','const','type','struct','interface','map','chan','go','defer','select','nil','true','false'],
+    rs: ['fn','let','mut','const','static','struct','enum','trait','impl','for','in','if','else','match','loop','while','break','continue','return','use','mod','pub','crate','self','Self','super','as','where','move','ref','true','false','Some','None','Ok','Err'],
+    java: ['public','private','protected','class','interface','enum','extends','implements','static','final','void','int','long','double','float','boolean','char','byte','short','new','return','if','else','for','while','do','switch','case','break','continue','try','catch','finally','throw','throws','package','import','this','super','null','true','false'],
+    c: ['int','char','long','short','float','double','void','unsigned','signed','struct','union','enum','typedef','static','extern','const','volatile','return','if','else','for','while','do','switch','case','break','continue','goto','sizeof','NULL','true','false'],
+    cpp: ['int','char','long','short','float','double','void','bool','auto','class','struct','union','enum','template','typename','namespace','using','public','private','protected','virtual','override','const','constexpr','static','extern','volatile','return','if','else','for','while','do','switch','case','break','continue','new','delete','this','nullptr','true','false','try','catch','throw'],
+    json: ['true','false','null'],
+    yaml: ['true','false','null','yes','no'],
+    html: [],
+    css: []
+  };
+
+  const LANG_ALIASES = {
+    javascript: 'js', jsx: 'js', mjs: 'js', cjs: 'js',
+    typescript: 'ts', tsx: 'ts',
+    python: 'py',
+    bash: 'sh', shell: 'sh', zsh: 'sh', console: 'sh',
+    golang: 'go',
+    rust: 'rs',
+    'c++': 'cpp', cxx: 'cpp', hpp: 'cpp', h: 'c',
+    yml: 'yaml',
+    jsonc: 'json',
+    markup: 'html', xml: 'html', svg: 'html'
+  };
+
+  const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const highlightCode = (text, lang) => {
+    const rawLang = String(lang || '').trim().toLowerCase();
+    const key = LANG_ALIASES[rawLang] || rawLang;
+    if (!key || !KEYWORDS[key]) return escapeHtml(text);
+
+    const kw = KEYWORDS[key];
+    if (!kw.length) {
+      // For html/css we still handle comments and strings crudely
+      return escapeHtml(text);
+    }
+
+    const kwSet = new Set(kw);
+    // Tokenizer: strings, comments, numbers, identifiers, punctuation
+    const tokens = [];
+    let i = 0;
+    const n = text.length;
+    const isIdentStart = (ch) => /[A-Za-z_$]/.test(ch);
+    const isIdent = (ch) => /[A-Za-z0-9_$]/.test(ch);
+    const isDigit = (ch) => /[0-9]/.test(ch);
+
+    while (i < n) {
+      const ch = text[i];
+      // line comment
+      if (ch === '/' && text[i + 1] === '/') {
+        let j = i + 2;
+        while (j < n && text[j] !== '\n') j++;
+        tokens.push(['comment', text.slice(i, j)]); i = j; continue;
+      }
+      if (ch === '#' && (key === 'py' || key === 'sh' || key === 'yaml')) {
+        let j = i + 1;
+        while (j < n && text[j] !== '\n') j++;
+        tokens.push(['comment', text.slice(i, j)]); i = j; continue;
+      }
+      // block comment
+      if (ch === '/' && text[i + 1] === '*') {
+        let j = i + 2;
+        while (j < n && !(text[j] === '*' && text[j + 1] === '/')) j++;
+        j = Math.min(n, j + 2);
+        tokens.push(['comment', text.slice(i, j)]); i = j; continue;
+      }
+      // strings
+      if (ch === '"' || ch === "'" || ch === '`') {
+        const quote = ch;
+        let j = i + 1;
+        while (j < n) {
+          if (text[j] === '\\') { j += 2; continue; }
+          if (text[j] === quote) { j++; break; }
+          j++;
+        }
+        tokens.push(['string', text.slice(i, j)]); i = j; continue;
+      }
+      // numbers
+      if (isDigit(ch) || (ch === '.' && isDigit(text[i + 1]))) {
+        let j = i + 1;
+        while (j < n && /[0-9a-fA-FxX._]/.test(text[j])) j++;
+        tokens.push(['number', text.slice(i, j)]); i = j; continue;
+      }
+      // identifiers / keywords
+      if (isIdentStart(ch)) {
+        let j = i + 1;
+        while (j < n && isIdent(text[j])) j++;
+        const word = text.slice(i, j);
+        if (kwSet.has(word)) tokens.push(['keyword', word]);
+        else tokens.push(['ident', word]);
+        i = j; continue;
+      }
+      // default: single char
+      tokens.push(['plain', ch]);
+      i++;
+    }
+
+    let out = '';
+    tokens.forEach(([type, value]) => {
+      const safe = escapeHtml(value);
+      if (type === 'keyword') out += '<span class="mdv-tok-kw">' + safe + '</span>';
+      else if (type === 'string') out += '<span class="mdv-tok-str">' + safe + '</span>';
+      else if (type === 'comment') out += '<span class="mdv-tok-com">' + safe + '</span>';
+      else if (type === 'number') out += '<span class="mdv-tok-num">' + safe + '</span>';
+      else out += safe;
+    });
+    return out;
+  };
+
+  const applySyntaxHighlight = (root) => {
+    root.querySelectorAll('pre > code').forEach((code) => {
+      if (code.dataset.mdvHl === '1') return;
+      const pre = code.parentElement;
+      if (!pre) return;
+      // language from class "language-xxx" or from data-lang
+      let lang = '';
+      const cls = code.className || '';
+      const m = /(?:^|\s)language-([\w+.-]+)/i.exec(cls);
+      if (m) lang = m[1];
+      if (!lang) {
+        const lc = (pre.className || '').match(/(?:^|\s)lang-([\w+.-]+)/i);
+        if (lc) lang = lc[1];
+      }
+      if (!lang) { code.dataset.mdvHl = '1'; return; }
+      const text = code.textContent || '';
+      const highlighted = highlightCode(text, lang);
+      if (highlighted && highlighted !== escapeHtml(text)) {
+        code.innerHTML = highlighted;
+      }
+      code.dataset.mdvHl = '1';
+    });
+  };
+
+  // --- Word count + reading time ---
+  const computeStats = (rootEl) => {
+    const text = (rootEl.innerText || rootEl.textContent || '').trim();
+    const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+    const minutes = Math.max(1, Math.round(words / 220));
+    return { words, minutes };
+  };
+
+  const createStatsFooter = (rootEl) => {
+    const stats = computeStats(rootEl);
+    const footer = document.createElement('footer');
+    footer.className = 'markdown-stats';
+    const words = stats.words.toLocaleString();
+    footer.textContent = words + ' words  \u00B7  ~' + stats.minutes + ' min read';
+    document.body.appendChild(footer);
+    return footer;
+  };
+
+  // --- Outline dropdown (Jump to...) ---
+  const createOutlineMenu = (rootEl) => {
+    const headings = rootEl.querySelectorAll('h1, h2, h3, h4');
+    if (headings.length < 3) return null;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'markdown-outline';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'markdown-outline-btn';
+    button.textContent = 'Jump to \u25BE';
+    button.setAttribute('aria-haspopup', 'listbox');
+    button.setAttribute('aria-expanded', 'false');
+    wrap.appendChild(button);
+
+    const list = document.createElement('div');
+    list.className = 'markdown-outline-list';
+    list.setAttribute('role', 'listbox');
+    headings.forEach((h) => {
+      const level = Number(h.tagName.slice(1));
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'markdown-outline-item markdown-outline-h' + level;
+      item.textContent = h.textContent || '';
+      item.title = h.textContent || '';
+      item.addEventListener('click', () => {
+        const target = document.getElementById(h.id);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        close();
+      });
+      list.appendChild(item);
+    });
+    wrap.appendChild(list);
+
+    const open = () => { wrap.classList.add('open'); button.setAttribute('aria-expanded', 'true'); };
+    const close = () => { wrap.classList.remove('open'); button.setAttribute('aria-expanded', 'false'); };
+    const toggle = () => { if (wrap.classList.contains('open')) close(); else open(); };
+
+    button.addEventListener('click', (ev) => { ev.stopPropagation(); toggle(); });
+    document.addEventListener('click', (ev) => { if (!wrap.contains(ev.target)) close(); });
+    document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') close(); });
+
+    document.body.appendChild(wrap);
+    return wrap;
+  };
+
+  // --- Scroll position memory per file ---
+  const scrollKey = () => 'mdv-scroll:' + (location.pathname || '') + (location.search || '');
+  const readScroll = () => new Promise((resolve) => {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(scrollKey(), (r) => resolve(Number(r && r[scrollKey()]) || 0));
+        return;
+      }
+    } catch (e) {}
+    try { resolve(Number(localStorage.getItem(scrollKey())) || 0); } catch (e) { resolve(0); }
+  });
+  const writeScroll = (y) => {
+    const key = scrollKey();
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ [key]: y });
+        return;
+      }
+    } catch (e) {}
+    try { localStorage.setItem(key, String(y)); } catch (e) {}
+  };
+  const installScrollMemory = () => {
+    // Restore only if no explicit hash in URL (hash wins)
+    if (!location.hash || location.hash.length <= 1) {
+      readScroll().then((y) => {
+        if (y > 0) {
+          setTimeout(() => window.scrollTo({ top: y, behavior: 'auto' }), 0);
+        }
+      });
+    }
+    let last = 0;
+    let scheduled = false;
+    const flush = () => { scheduled = false; writeScroll(last); };
+    window.addEventListener('scroll', () => {
+      last = window.scrollY;
+      if (scheduled) return;
+      scheduled = true;
+      setTimeout(flush, 400);
+    }, { passive: true });
+  };
+
   const postProcess = (root) => {
     assignHeadingIds(root);
 
@@ -566,6 +811,7 @@
     });
 
     createHeadingAnchors(root);
+    applySyntaxHighlight(root);
     enhanceCodeBlocks(root);
   };
 
@@ -681,6 +927,12 @@
 
     const focus = installFocusMode();
     window.__mdvFocusToggle = focus.toggle;
+
+    if (main) {
+      createOutlineMenu(main);
+      createStatsFooter(main);
+    }
+    installScrollMemory();
 
     installShortcuts(
       () => document.querySelector('nav.markdown-toc'),

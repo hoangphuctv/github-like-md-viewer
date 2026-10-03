@@ -100,3 +100,10 @@ Open development project.
 - In-page search bar (`/` to open, `Enter`/`Shift+Enter` to jump, `Esc` to close) with match counter and highlight.
 - Copy original Markdown source button (top-right, next to theme toggle).
 - Focus / Zen mode (`f` to toggle): hides TOC, progress bar, floating buttons; narrows body for distraction-free reading.
+
+## New in 0.5.0
+
+- Lightweight syntax highlighting for fenced code blocks (JS/TS/Python/Shell/Go/Rust/Java/C/C++/JSON/YAML) — no external library.
+- "Jump to…" outline dropdown in the top-left for quick heading navigation.
+- Word count and estimated reading time in a footer under the content.
+- Per-file scroll position memory: reopening a `.md` resumes where you stopped.
