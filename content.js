@@ -673,53 +673,6 @@
     return footer;
   };
 
-  // --- Outline dropdown (Jump to...) ---
-  const createOutlineMenu = (rootEl) => {
-    const headings = rootEl.querySelectorAll('h1, h2, h3, h4');
-    if (headings.length < 3) return null;
-
-    const wrap = document.createElement('div');
-    wrap.className = 'markdown-outline';
-
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'markdown-outline-btn';
-    button.textContent = 'Jump to \u25BE';
-    button.setAttribute('aria-haspopup', 'listbox');
-    button.setAttribute('aria-expanded', 'false');
-    wrap.appendChild(button);
-
-    const list = document.createElement('div');
-    list.className = 'markdown-outline-list';
-    list.setAttribute('role', 'listbox');
-    headings.forEach((h) => {
-      const level = Number(h.tagName.slice(1));
-      const item = document.createElement('button');
-      item.type = 'button';
-      item.className = 'markdown-outline-item markdown-outline-h' + level;
-      item.textContent = h.textContent || '';
-      item.title = h.textContent || '';
-      item.addEventListener('click', () => {
-        const target = document.getElementById(h.id);
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        close();
-      });
-      list.appendChild(item);
-    });
-    wrap.appendChild(list);
-
-    const open = () => { wrap.classList.add('open'); button.setAttribute('aria-expanded', 'true'); };
-    const close = () => { wrap.classList.remove('open'); button.setAttribute('aria-expanded', 'false'); };
-    const toggle = () => { if (wrap.classList.contains('open')) close(); else open(); };
-
-    button.addEventListener('click', (ev) => { ev.stopPropagation(); toggle(); });
-    document.addEventListener('click', (ev) => { if (!wrap.contains(ev.target)) close(); });
-    document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') close(); });
-
-    document.body.appendChild(wrap);
-    return wrap;
-  };
-
   // --- Scroll position memory per file ---
   const scrollKey = () => 'mdv-scroll:' + (location.pathname || '') + (location.search || '');
   const readScroll = () => new Promise((resolve) => {
@@ -1000,7 +953,6 @@
     window.__mdvFocusToggle = focus.toggle;
 
     if (main) {
-      createOutlineMenu(main);
       createStatsFooter(main);
     }
     installScrollMemory();

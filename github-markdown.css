@@ -498,7 +498,6 @@ html.markdown-dark .markdown-toc.collapsed .markdown-toc-toggle {
   .markdown-toc,
   .markdown-theme-toggle,
   .markdown-search,
-  .markdown-outline,
   .markdown-print,
   .markdown-task-progress,
   .markdown-back-to-top,
@@ -702,67 +701,6 @@ html.markdown-dark .markdown-body pre code .mdv-tok-str { color: #a5d6ff; }
 html.markdown-dark .markdown-body pre code .mdv-tok-com { color: #8b949e; }
 html.markdown-dark .markdown-body pre code .mdv-tok-num { color: #79c0ff; }
 
-/* Outline menu (top-left) */
-.markdown-outline {
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 9999;
-  font: 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-}
-.markdown-outline-btn {
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid #d1d9e0;
-  border-radius: 16px;
-  background: #ffffff;
-  color: #1f2328;
-  cursor: pointer;
-  box-shadow: 0 1px 3px rgba(31, 35, 40, .15);
-}
-.markdown-outline-btn:hover { background: #f6f8fa; }
-.markdown-outline-list {
-  position: absolute;
-  top: 40px;
-  left: 0;
-  min-width: 260px;
-  max-width: min(360px, 80vw);
-  max-height: 60vh;
-  overflow-y: auto;
-  padding: 6px;
-  background: #ffffff;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(31, 35, 40, .18);
-  display: none;
-}
-.markdown-outline.open .markdown-outline-list { display: block; }
-.markdown-outline-item {
-  display: block;
-  width: 100%;
-  padding: 4px 8px;
-  margin: 0;
-  border: 0;
-  background: transparent;
-  color: #1f2328;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.markdown-outline-item:hover { background: #f3f4f6; }
-.markdown-outline-h1 { padding-left: 6px; font-weight: 600; }
-.markdown-outline-h2 { padding-left: 18px; }
-.markdown-outline-h3 { padding-left: 30px; }
-.markdown-outline-h4 { padding-left: 42px; font-size: 12px; color: #59636e; }
-html.markdown-dark .markdown-outline-btn { border-color: #30363d; background: #21262d; color: #e6edf3; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
-html.markdown-dark .markdown-outline-btn:hover { background: #30363d; }
-html.markdown-dark .markdown-outline-list { background: #161b22; border-color: #30363d; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
-html.markdown-dark .markdown-outline-item { color: #e6edf3; }
-html.markdown-dark .markdown-outline-item:hover { background: #21262d; }
-
 /* Stats footer */
 .markdown-stats {
   max-width: 1012px;
@@ -776,11 +714,9 @@ html.markdown-dark .markdown-outline-item:hover { background: #21262d; }
 html.markdown-dark .markdown-stats { color: #8b949e; border-top-color: #30363d; }
 
 /* Keep focus mode clean */
-html.markdown-focus .markdown-outline,
 html.markdown-focus .markdown-stats { display: none !important; }
 
 @media print {
-  .markdown-outline,
   .markdown-stats { display: none !important; }
 }
 

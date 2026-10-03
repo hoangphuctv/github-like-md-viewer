@@ -104,7 +104,6 @@ Open development project.
 ## New in 0.5.0
 
 - Lightweight syntax highlighting for fenced code blocks (JS/TS/Python/Shell/Go/Rust/Java/C/C++/JSON/YAML) — no external library.
-- "Jump to…" outline dropdown in the top-left for quick heading navigation.
 - Word count and estimated reading time in a footer under the content.
 - Per-file scroll position memory: reopening a `.md` resumes where you stopped.
 
