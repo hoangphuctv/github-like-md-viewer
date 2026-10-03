@@ -497,7 +497,6 @@ html.markdown-dark .markdown-toc.collapsed .markdown-toc-toggle {
 @media print {
   .markdown-toc,
   .markdown-theme-toggle,
-  .markdown-copy-md,
   .markdown-search,
   .markdown-outline,
   .markdown-print,
@@ -681,37 +680,13 @@ mark.mdv-search-hit.active {
 html.markdown-dark mark.mdv-search-hit { background: rgba(187, 128, 9, .55); color: #f0f6fc; }
 html.markdown-dark mark.mdv-search-hit.active { background: #d29922; color: #0d1117; }
 
-/* Copy markdown button (next to theme toggle) */
-.markdown-copy-md {
-  position: fixed;
-  top: 12px;
-  right: 56px;
-  z-index: 9999;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid #d1d9e0;
-  border-radius: 16px;
-  background: #ffffff;
-  color: #1f2328;
-  box-shadow: 0 1px 3px rgba(31, 35, 40, .15);
-  cursor: pointer;
-  font: 12px/30px -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-}
-.markdown-copy-md:hover { background: #f6f8fa; }
-.markdown-copy-md.copied { color: #1a7f37; border-color: #1a7f37; }
-html.markdown-dark .markdown-copy-md { border-color: #30363d; background: #21262d; color: #e6edf3; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
-html.markdown-dark .markdown-copy-md:hover { background: #30363d; }
-html.markdown-dark .markdown-copy-md.copied { color: #3fb950; border-color: #3fb950; }
-
 /* Focus / Zen mode */
 html.markdown-focus .markdown-toc,
 html.markdown-focus .markdown-progress,
-html.markdown-focus .markdown-back-to-top,
-html.markdown-focus .markdown-copy-md { display: none !important; }
+html.markdown-focus .markdown-back-to-top { display: none !important; }
 html.markdown-focus .markdown-body { max-width: 780px; padding-top: 64px; }
 
 @media (max-width: 600px) {
-  .markdown-copy-md { display: none; }
   .markdown-search-input { width: 60vw; }
 }
 

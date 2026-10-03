@@ -514,41 +514,7 @@
     return { toggle, isFocused: () => focused };
   };
 
-  // --- Copy original Markdown ---
-  const createCopyMarkdown = (getSource) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'markdown-copy-md';
-    button.textContent = 'Copy .md';
-    button.setAttribute('aria-label', 'Copy original Markdown');
-    button.setAttribute('title', 'Copy original Markdown source');
-
-    button.addEventListener('click', () => {
-      const text = getSource() || '';
-      const done = () => {
-        button.classList.add('copied');
-        button.textContent = 'Copied!';
-        setTimeout(() => { button.classList.remove('copied'); button.textContent = 'Copy .md'; }, 1200);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, () => {});
-      } else {
-        try {
-          const ta = document.createElement('textarea');
-          ta.value = text;
-          ta.style.position = 'fixed';
-          ta.style.opacity = '0';
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand('copy');
-          document.body.removeChild(ta);
-          done();
-        } catch (e) {}
-      }
-    });
-    document.body.appendChild(button);
-    return button;
-  };
+  // (Copy .md button removed per user request.)
 
   // --- Tiny syntax highlighter (no deps) ---
   const KEYWORDS = {
@@ -1026,7 +992,6 @@
     createThemeToggle(dark);
     createReadingProgress();
     createBackToTop();
-    createCopyMarkdown(getSource);
 
     const search = createSearchBar(main || document.body);
     window.__mdvSearch = search;
