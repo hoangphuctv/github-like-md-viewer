@@ -496,7 +496,14 @@ html.markdown-dark .markdown-toc.collapsed .markdown-toc-toggle {
 /* Print: hide floating chrome, widen body */
 @media print {
   .markdown-toc,
-  .markdown-theme-toggle {
+  .markdown-theme-toggle,
+  .markdown-copy-md,
+  .markdown-search,
+  .markdown-outline,
+  .markdown-print,
+  .markdown-task-progress,
+  .markdown-back-to-top,
+  .markdown-progress {
     display: none !important;
   }
   .markdown-body {
