@@ -339,6 +339,11 @@
           window.__mdvFocusToggle();
           ev.preventDefault();
         }
+      } else if (key === 'l') {
+        if (window.__mdvToggleLineNumbers) {
+          window.__mdvToggleLineNumbers();
+          ev.preventDefault();
+        }
       }
     });
   };
@@ -790,6 +795,105 @@
     }, { passive: true });
   };
 
+  // --- Interactive task lists with progress ---
+  const TASKS_KEY = 'mdv-tasks:';
+  const tasksStorageKey = () => TASKS_KEY + (location.pathname || '') + (location.search || '');
+  const readTasks = () => new Promise((resolve) => {
+    const key = tasksStorageKey();
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(key, (r) => resolve((r && r[key]) || {}));
+        return;
+      }
+    } catch (e) {}
+    try { resolve(JSON.parse(localStorage.getItem(key) || '{}')); } catch (e) { resolve({}); }
+  });
+  const writeTasks = (map) => {
+    const key = tasksStorageKey();
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ [key]: map });
+        return;
+      }
+    } catch (e) {}
+    try { localStorage.setItem(key, JSON.stringify(map)); } catch (e) {}
+  };
+
+  const enhanceTaskLists = (rootEl) => {
+    const boxes = rootEl.querySelectorAll('li > input[type="checkbox"]');
+    if (!boxes.length) return null;
+
+    // Assign stable index per file, prefer text-based key for robustness
+    const keyed = [];
+    boxes.forEach((box, idx) => {
+      const li = box.closest('li');
+      const label = (li ? (li.textContent || '') : '').trim().slice(0, 120);
+      const key = idx + '::' + label;
+      keyed.push({ box, li, key, idx });
+      box.disabled = false;
+      box.removeAttribute('disabled');
+      box.classList.add('mdv-task');
+    });
+
+    const badge = document.createElement('div');
+    badge.className = 'markdown-task-progress';
+    badge.setAttribute('role', 'status');
+    document.body.appendChild(badge);
+
+    const updateBadge = () => {
+      const total = keyed.length;
+      const done = keyed.filter((k) => k.box.checked).length;
+      badge.textContent = 'Tasks ' + done + '/' + total;
+      badge.classList.toggle('all-done', total > 0 && done === total);
+    };
+
+    readTasks().then((map) => {
+      keyed.forEach((k) => {
+        if (Object.prototype.hasOwnProperty.call(map, k.key)) {
+          k.box.checked = !!map[k.key];
+        }
+      });
+      updateBadge();
+    });
+
+    keyed.forEach((k) => {
+      k.box.addEventListener('change', () => {
+        readTasks().then((map) => {
+          map[k.key] = !!k.box.checked;
+          writeTasks(map);
+          updateBadge();
+        });
+      });
+    });
+
+    return badge;
+  };
+
+  // --- Print to PDF button ---
+  const createPrintButton = () => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'markdown-print';
+    button.textContent = '\u2399';
+    button.setAttribute('aria-label', 'Print / Save as PDF');
+    button.setAttribute('title', 'Print / Save as PDF');
+    button.addEventListener('click', () => window.print());
+    document.body.appendChild(button);
+    return button;
+  };
+
+  // --- Line numbers on code blocks (toggle with 'l') ---
+  const toggleLineNumbers = () => {
+    const on = document.documentElement.classList.toggle('mdv-line-numbers');
+    return on;
+  };
+  const installLineNumbers = (rootEl) => {
+    rootEl.querySelectorAll('pre > code').forEach((code) => {
+      if (code.dataset.mdvLines === '1') return;
+      code.dataset.mdvLines = '1';
+    });
+  };
+
   const postProcess = (root) => {
     assignHeadingIds(root);
 
@@ -813,6 +917,8 @@
     createHeadingAnchors(root);
     applySyntaxHighlight(root);
     enhanceCodeBlocks(root);
+    installLineNumbers(root);
+    enhanceTaskLists(root);
   };
 
   const renderMarkdown = (source) => {
@@ -933,6 +1039,8 @@
       createStatsFooter(main);
     }
     installScrollMemory();
+    createPrintButton();
+    window.__mdvToggleLineNumbers = toggleLineNumbers;
 
     installShortcuts(
       () => document.querySelector('nav.markdown-toc'),

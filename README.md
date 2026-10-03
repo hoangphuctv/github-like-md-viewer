@@ -107,3 +107,9 @@ Open development project.
 - "Jump to…" outline dropdown in the top-left for quick heading navigation.
 - Word count and estimated reading time in a footer under the content.
 - Per-file scroll position memory: reopening a `.md` resumes where you stopped.
+
+## New in 0.6.0
+
+- Interactive task lists: checkboxes trong markdown giờ bấm được, trạng thái lưu theo từng file. Badge `Tasks n/m` hiện góc trên phải.
+- Print / Save as PDF button (góc trên phải): gọi hộp thoại in với CSS print đã tối ưu (ẩn TOC, nút, progress bar).
+- Line numbers cho code block, bật/tắt bằng phím `l`.

@@ -801,3 +801,85 @@ html.markdown-focus .markdown-stats { display: none !important; }
   .markdown-outline,
   .markdown-stats { display: none !important; }
 }
+
+/* === Enhancement pack v4: interactive tasks, print button, line numbers === */
+
+/* Interactive task checkboxes */
+.markdown-body input.mdv-task {
+  cursor: pointer;
+  width: 15px;
+  height: 15px;
+  accent-color: #0969da;
+}
+html.markdown-dark .markdown-body input.mdv-task { accent-color: #58a6ff; }
+
+/* Task progress badge (top-right, next to theme toggle) */
+.markdown-task-progress {
+  position: fixed;
+  top: 12px;
+  right: 96px;
+  z-index: 9999;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #d1d9e0;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #1f2328;
+  font: 12px/30px -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  box-shadow: 0 1px 3px rgba(31, 35, 40, .15);
+  pointer-events: none;
+}
+.markdown-task-progress.all-done { color: #1a7f37; border-color: #1a7f37; }
+html.markdown-dark .markdown-task-progress { border-color: #30363d; background: #21262d; color: #e6edf3; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
+html.markdown-dark .markdown-task-progress.all-done { color: #3fb950; border-color: #3fb950; }
+
+/* Print / Save as PDF floating button */
+.markdown-print {
+  position: fixed;
+  top: 12px;
+  right: 176px;
+  z-index: 9999;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #d1d9e0;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #1f2328;
+  box-shadow: 0 1px 3px rgba(31, 35, 40, .15);
+  cursor: pointer;
+  font: 15px/30px sans-serif;
+  text-align: center;
+}
+.markdown-print:hover { background: #f6f8fa; }
+html.markdown-dark .markdown-print { border-color: #30363d; background: #21262d; color: #e6edf3; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
+html.markdown-dark .markdown-print:hover { background: #30363d; }
+
+/* Line numbers (opt-in via html.mdv-line-numbers) */
+html.mdv-line-numbers .markdown-body pre > code {
+  display: block;
+  padding-left: 3.25em;
+  position: relative;
+  counter-reset: mdv-line;
+}
+html.mdv-line-numbers .markdown-body pre > code {
+  background-image: linear-gradient(to right, rgba(27, 31, 36, .04) 3em, transparent 3em);
+  background-repeat: no-repeat;
+}
+html.markdown-dark.mdv-line-numbers .markdown-body pre > code {
+  background-image: linear-gradient(to right, rgba(240, 246, 252, .05) 3em, transparent 3em);
+}
+
+/* Hide floating chrome in focus mode */
+html.markdown-focus .markdown-print,
+html.markdown-focus .markdown-task-progress { display: none !important; }
+
+@media print {
+  .markdown-print,
+  .markdown-task-progress { display: none !important; }
+}
+
+@media (max-width: 600px) {
+  .markdown-task-progress { right: 52px; }
+  .markdown-print { display: none; }
+}
