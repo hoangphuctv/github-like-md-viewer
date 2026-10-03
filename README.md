@@ -83,3 +83,14 @@ Reading experience:
 ## License
 
 Open development project.
+
+---
+
+## New in 0.3.0
+
+- Copy button on every code block (with "Copied!" feedback).
+- Reading progress bar at the top of the page.
+- Back-to-top floating button (appears after scrolling).
+- Heading anchor `#` on hover — click to copy a deep link to that section.
+- Keyboard shortcuts: `t` toggles the table of contents, `d` toggles dark mode.
+- Works in both light and dark mode; hidden in print.

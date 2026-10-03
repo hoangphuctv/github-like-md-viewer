@@ -197,6 +197,142 @@
     return nav;
   };
 
+  // --- Reading progress bar ---
+  const createReadingProgress = () => {
+    const bar = document.createElement('div');
+    bar.className = 'markdown-progress';
+    bar.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(bar);
+
+    const update = () => {
+      const doc = document.documentElement;
+      const max = (doc.scrollHeight || 0) - (doc.clientHeight || 0);
+      const ratio = max > 0 ? Math.min(1, Math.max(0, doc.scrollTop / max)) : 0;
+      bar.style.transform = 'scaleX(' + ratio + ')';
+    };
+
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    return bar;
+  };
+
+  // --- Back to top ---
+  const createBackToTop = () => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'markdown-back-to-top';
+    button.textContent = '\u2191';
+    button.setAttribute('aria-label', 'Back to top');
+    button.setAttribute('title', 'Back to top');
+    button.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    document.body.appendChild(button);
+
+    const toggle = () => {
+      if (window.scrollY > 400) button.classList.add('visible');
+      else button.classList.remove('visible');
+    };
+    toggle();
+    window.addEventListener('scroll', toggle, { passive: true });
+    return button;
+  };
+
+  // --- Heading anchor links (#) ---
+  const createHeadingAnchors = (root) => {
+    root.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
+      if (!h.id) return;
+      if (h.querySelector('a.markdown-anchor')) return;
+      const a = document.createElement('a');
+      a.className = 'markdown-anchor';
+      a.href = '#' + h.id;
+      a.setAttribute('aria-label', 'Link to this heading');
+      a.setAttribute('title', 'Link to this heading');
+      a.textContent = '#';
+      a.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        try { history.replaceState(null, '', '#' + h.id); } catch (e) {}
+        const done = () => {
+          a.classList.add('copied');
+          a.textContent = '\u2713';
+          setTimeout(() => { a.classList.remove('copied'); a.textContent = '#'; }, 1200);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(location.href).then(done, () => {});
+        } else { done(); }
+        const target = document.getElementById(h.id);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      h.appendChild(a);
+    });
+  };
+
+  // --- Copy button for code blocks ---
+  const enhanceCodeBlocks = (root) => {
+    root.querySelectorAll('pre > code').forEach((code) => {
+      const pre = code.parentElement;
+      if (!pre || pre.querySelector('.markdown-copy-code')) return;
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'markdown-copy-code';
+      button.textContent = 'Copy';
+      button.setAttribute('aria-label', 'Copy code');
+      button.setAttribute('title', 'Copy code');
+
+      button.addEventListener('click', () => {
+        const text = code.innerText;
+        const done = () => {
+          button.classList.add('copied');
+          button.textContent = 'Copied!';
+          setTimeout(() => { button.classList.remove('copied'); button.textContent = 'Copy'; }, 1200);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, () => {});
+        } else {
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            done();
+          } catch (e) {}
+        }
+      });
+
+      pre.style.position = 'relative';
+      pre.appendChild(button);
+    });
+  };
+
+  // --- Keyboard shortcuts ---
+  const installShortcuts = (getToc, getThemeButton) => {
+    document.addEventListener('keydown', (ev) => {
+      if (ev.defaultPrevented) return;
+      const target = ev.target;
+      const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || (target && target.isContentEditable)) return;
+      if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+
+      const key = ev.key ? ev.key.toLowerCase() : '';
+      if (key === 't') {
+        const toc = getToc && getToc();
+        if (toc) {
+          const toggle = toc.querySelector('.markdown-toc-toggle');
+          if (toggle) { toggle.click(); ev.preventDefault(); }
+        }
+      } else if (key === 'd') {
+        const btn = getThemeButton && getThemeButton();
+        if (btn) { btn.click(); ev.preventDefault(); }
+      }
+    });
+  };
+
   const postProcess = (root) => {
     assignHeadingIds(root);
 
@@ -216,6 +352,9 @@
       if (resolved && resolved !== raw) img.setAttribute("src", resolved);
       img.setAttribute("loading", "lazy");
     });
+
+    createHeadingAnchors(root);
+    enhanceCodeBlocks(root);
   };
 
   const renderMarkdown = (source) => {
@@ -321,6 +460,13 @@
     }
 
     createThemeToggle(dark);
+    createReadingProgress();
+    createBackToTop();
+
+    installShortcuts(
+      () => document.querySelector('nav.markdown-toc'),
+      () => document.querySelector('.markdown-theme-toggle')
+    );
 
     // Nếu URL có hash, nhảy tới sau khi render
     if (location.hash && location.hash.length > 1) {
