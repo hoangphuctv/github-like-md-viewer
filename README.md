@@ -94,3 +94,9 @@ Open development project.
 - Heading anchor `#` on hover — click to copy a deep link to that section.
 - Keyboard shortcuts: `t` toggles the table of contents, `d` toggles dark mode.
 - Works in both light and dark mode; hidden in print.
+
+## New in 0.4.0
+
+- In-page search bar (`/` to open, `Enter`/`Shift+Enter` to jump, `Esc` to close) with match counter and highlight.
+- Copy original Markdown source button (top-right, next to theme toggle).
+- Focus / Zen mode (`f` to toggle): hides TOC, progress bar, floating buttons; narrows body for distraction-free reading.

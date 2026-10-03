@@ -329,8 +329,220 @@
       } else if (key === 'd') {
         const btn = getThemeButton && getThemeButton();
         if (btn) { btn.click(); ev.preventDefault(); }
+      } else if (key === '/') {
+        if (window.__mdvSearch && window.__mdvSearch.openBar) {
+          window.__mdvSearch.openBar();
+          ev.preventDefault();
+        }
+      } else if (key === 'f') {
+        if (window.__mdvFocusToggle) {
+          window.__mdvFocusToggle();
+          ev.preventDefault();
+        }
       }
     });
+  };
+
+  // --- In-page search ---
+  const createSearchBar = (rootEl) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'markdown-search';
+    wrap.setAttribute('role', 'search');
+
+    const input = document.createElement('input');
+    input.type = 'search';
+    input.className = 'markdown-search-input';
+    input.placeholder = 'Search in page  ( / )';
+    input.setAttribute('aria-label', 'Search in page');
+    wrap.appendChild(input);
+
+    const counter = document.createElement('span');
+    counter.className = 'markdown-search-counter';
+    counter.textContent = '0/0';
+    wrap.appendChild(counter);
+
+    const prev = document.createElement('button');
+    prev.type = 'button';
+    prev.className = 'markdown-search-nav';
+    prev.textContent = '\u2191';
+    prev.setAttribute('aria-label', 'Previous match');
+    prev.setAttribute('title', 'Previous match (Shift+Enter)');
+    wrap.appendChild(prev);
+
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'markdown-search-nav';
+    next.textContent = '\u2193';
+    next.setAttribute('aria-label', 'Next match');
+    next.setAttribute('title', 'Next match (Enter)');
+    wrap.appendChild(next);
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'markdown-search-close';
+    close.textContent = '\u00D7';
+    close.setAttribute('aria-label', 'Close search');
+    close.setAttribute('title', 'Close (Esc)');
+    wrap.appendChild(close);
+
+    document.body.appendChild(wrap);
+
+    let matches = [];
+    let current = -1;
+
+    const clearMarks = () => {
+      rootEl.querySelectorAll('mark.mdv-search-hit').forEach((m) => {
+        const parent = m.parentNode;
+        if (!parent) return;
+        parent.replaceChild(document.createTextNode(m.textContent), m);
+        parent.normalize();
+      });
+      matches = [];
+      current = -1;
+      counter.textContent = '0/0';
+    };
+
+    const updateCounter = () => {
+      if (!matches.length) counter.textContent = '0/0';
+      else counter.textContent = (current + 1) + '/' + matches.length;
+      matches.forEach((m, i) => m.classList.toggle('active', i === current));
+    };
+
+    const focusMatch = (i) => {
+      if (!matches.length) return;
+      current = (i + matches.length) % matches.length;
+      updateCounter();
+      const el = matches[current];
+      if (el && el.scrollIntoView) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
+    const runSearch = (query) => {
+      clearMarks();
+      const q = String(query || '').trim();
+      if (q.length < 2) return;
+
+      const lower = q.toLowerCase();
+      const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => {
+          if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+          const p = node.parentNode;
+          if (!p) return NodeFilter.FILTER_REJECT;
+          const tag = p.tagName ? p.tagName.toLowerCase() : '';
+          if (tag === 'script' || tag === 'style' || tag === 'mark') return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+
+      const textNodes = [];
+      let n;
+      while ((n = walker.nextNode())) textNodes.push(n);
+
+      textNodes.forEach((node) => {
+        const text = node.nodeValue;
+        const lowerText = text.toLowerCase();
+        let idx = lowerText.indexOf(lower);
+        if (idx < 0) return;
+
+        const frag = document.createDocumentFragment();
+        let last = 0;
+        while (idx >= 0) {
+          if (idx > last) frag.appendChild(document.createTextNode(text.slice(last, idx)));
+          const mark = document.createElement('mark');
+          mark.className = 'mdv-search-hit';
+          mark.textContent = text.slice(idx, idx + q.length);
+          frag.appendChild(mark);
+          matches.push(mark);
+          last = idx + q.length;
+          idx = lowerText.indexOf(lower, last);
+        }
+        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+        node.parentNode.replaceChild(frag, node);
+      });
+
+      updateCounter();
+      if (matches.length) focusMatch(0);
+    };
+
+    let debounce = null;
+    input.addEventListener('input', () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(() => runSearch(input.value), 120);
+    });
+
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        focusMatch(current + (ev.shiftKey ? -1 : 1));
+      } else if (ev.key === 'Escape') {
+        ev.preventDefault();
+        closeBar();
+      }
+    });
+
+    prev.addEventListener('click', () => focusMatch(current - 1));
+    next.addEventListener('click', () => focusMatch(current + 1));
+    close.addEventListener('click', () => closeBar());
+
+    const openBar = () => {
+      wrap.classList.add('open');
+      input.focus();
+      input.select();
+    };
+    const closeBar = () => {
+      wrap.classList.remove('open');
+      clearMarks();
+      input.value = '';
+    };
+
+    return { wrap, input, openBar, closeBar, isOpen: () => wrap.classList.contains('open') };
+  };
+
+  // --- Focus / Zen mode ---
+  const installFocusMode = (getToc, getBackToTop) => {
+    let focused = false;
+    const apply = () => {
+      document.documentElement.classList.toggle('markdown-focus', focused);
+    };
+    const toggle = () => { focused = !focused; apply(); };
+    return { toggle, isFocused: () => focused };
+  };
+
+  // --- Copy original Markdown ---
+  const createCopyMarkdown = (getSource) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'markdown-copy-md';
+    button.textContent = 'Copy .md';
+    button.setAttribute('aria-label', 'Copy original Markdown');
+    button.setAttribute('title', 'Copy original Markdown source');
+
+    button.addEventListener('click', () => {
+      const text = getSource() || '';
+      const done = () => {
+        button.classList.add('copied');
+        button.textContent = 'Copied!';
+        setTimeout(() => { button.classList.remove('copied'); button.textContent = 'Copy .md'; }, 1200);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, () => {});
+      } else {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          done();
+        } catch (e) {}
+      }
+    });
+    document.body.appendChild(button);
+    return button;
   };
 
   const postProcess = (root) => {
@@ -462,6 +674,13 @@
     createThemeToggle(dark);
     createReadingProgress();
     createBackToTop();
+    createCopyMarkdown(getSource);
+
+    const search = createSearchBar(main || document.body);
+    window.__mdvSearch = search;
+
+    const focus = installFocusMode();
+    window.__mdvFocusToggle = focus.toggle;
 
     installShortcuts(
       () => document.querySelector('nav.markdown-toc'),
