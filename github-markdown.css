@@ -189,25 +189,32 @@ body {
 }
 
 .markdown-theme-toggle {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  z-index: 9999;
+  position: relative;
   width: 32px;
   height: 32px;
   padding: 0;
+  margin: 0;
   border: 1px solid #d1d9e0;
   border-radius: 50%;
   background: #fff;
   color: #1f2328;
   box-shadow: 0 1px 3px rgba(31, 35, 40, .15);
   cursor: pointer;
-  font: 16px/30px sans-serif;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
 }
 
 .markdown-theme-toggle:hover {
   background: #f6f8fa;
+}
+
+.markdown-theme-toggle svg {
+  display: block;
+  margin: 0 auto;
+  pointer-events: none;
 }
 
 html.markdown-dark {
@@ -286,70 +293,96 @@ html.markdown-dark .markdown-theme-toggle:hover {
 }
 
 
-/* TOC Drawer / Sidebar Styles */
-.markdown-toc {
+/* ============================================================
+   Topbar: <TOC> <PRINT> <THEME> ở góc trên bên phải
+   TOC là nút toggle, panel xổ xuống dưới khi mở.
+   ============================================================ */
+.markdown-topbar {
   position: fixed;
-  top: 20px;
-  left: 20px;
-  width: 260px;
-  max-height: calc(100vh - 40px);
-  background: #ffffff;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 999;
+  top: 12px;
+  right: 12px;
+  z-index: 9999;
   display: flex;
-  flex-direction: column;
-  padding: 12px;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --- TOC wrapper: chỉ là 1 slot trong topbar, dropdown bên trong --- */
+.markdown-toc {
+  position: relative;
+  width: 32px;
+  height: 32px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
   font-size: 13px;
-  transition: width 0.2s ease, padding 0.2s ease;
-  overflow: hidden;
 }
 
-.markdown-toc.collapsed {
-  width: 40px;
-  height: 40px;
-  padding: 8px;
+/* Header chỉ còn nút toggle */
+.markdown-toc-header {
+  margin: 0;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  line-height: 0;
 }
 
-.markdown-toc.collapsed .markdown-toc-list,
-.markdown-toc.collapsed .markdown-toc-title {
+/* Ẩn title "Contents" trong chế độ nút gọn */
+.markdown-toc-title {
   display: none;
 }
 
-.markdown-toc-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: #1f2328;
-}
-
 .markdown-toc-toggle {
-  background: none;
-  border: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #d1d9e0;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #1f2328;
+  box-shadow: 0 1px 3px rgba(31, 35, 40, .15);
   cursor: pointer;
-  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #656d76;
-  border-radius: 4px;
+  box-sizing: border-box;
+  line-height: 1;
 }
 
 .markdown-toc-toggle:hover {
-  background: #f3f4f6;
-  color: #1f2328;
+  background: #f6f8fa;
 }
 
+.markdown-toc-toggle svg {
+  display: block;
+  pointer-events: none;
+}
+
+/* Panel xổ xuống khi .open */
 .markdown-toc-list {
+  display: none;
+  position: absolute;
+  top: 40px;
+  right: 0;
+  width: 260px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
   list-style: none;
   margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  max-height: calc(100vh - 100px);
+  padding: 10px;
+  background: #ffffff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  scrollbar-width: thin;
+}
+
+.markdown-toc.open .markdown-toc-list {
+  display: block;
+}
+
+.markdown-toc-item {
+  margin: 4px 0;
+  line-height: 1.4;
 }
 
 .markdown-toc-item {
@@ -361,11 +394,12 @@ html.markdown-dark .markdown-theme-toggle:hover {
   color: #656d76;
   text-decoration: none;
   display: block;
+  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
   border-left: 2px solid transparent;
-  padding-left: 8px;
+  padding: 2px 8px;
+  line-height: 1.35;
 }
 
 .markdown-toc-item a:hover {
@@ -385,64 +419,30 @@ html.markdown-dark .markdown-theme-toggle:hover {
 .markdown-toc-h5 { padding-left: 40px; }
 .markdown-toc-h6 { padding-left: 50px; }
 
-/* Dark mode TOC */
-html.markdown-dark .markdown-toc {
+/* Dark mode TOC (dropdown) */
+html.markdown-dark .markdown-toc-toggle {
+  border-color: #30363d;
+  background: #21262d;
+  color: #e6edf3;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}
+html.markdown-dark .markdown-toc-toggle:hover {
+  background: #30363d;
+}
+html.markdown-dark .markdown-toc-list {
   background: #161b22;
   border-color: #30363d;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
-
-html.markdown-dark .markdown-toc-header {
-  color: #f0f6fc;
-}
-
-html.markdown-dark .markdown-toc-toggle {
-  color: #8b949e;
-}
-
-html.markdown-dark .markdown-toc-toggle:hover {
-  background: #21262d;
-  color: #f0f6fc;
-}
-
 html.markdown-dark .markdown-toc-item a {
   color: #8b949e;
 }
-
 html.markdown-dark .markdown-toc-item a:hover {
   color: #2f81f7;
 }
-
 html.markdown-dark .markdown-toc-item a.active {
   color: #2f81f7;
   border-left-color: #2f81f7;
-}
-
-/* TOC sits on the top-left; theme toggle stays top-right */
-.markdown-toc {
-  top: 20px;
-  max-height: calc(100vh - 40px);
-}
-
-.markdown-toc-header {
-  gap: 8px;
-}
-
-.markdown-toc-item a {
-  white-space: normal;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.35;
-  padding-top: 2px;
-  padding-bottom: 2px;
-}
-
-.markdown-toc-list {
-  max-height: calc(100vh - 140px);
-  scrollbar-width: thin;
 }
 
 .markdown-toc-list::-webkit-scrollbar {
@@ -458,38 +458,10 @@ html.markdown-dark .markdown-toc-list::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, .2);
 }
 
-.markdown-toc.collapsed {
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border-radius: 20px;
-}
-
-.markdown-toc.collapsed .markdown-toc-header {
-  margin: 0;
-  width: 100%;
-  height: 100%;
-  justify-content: center;
-}
-
-.markdown-toc.collapsed .markdown-toc-toggle {
-  width: 100%;
-  height: 100%;
-  font-size: 18px;
-  color: #1f2328;
-}
-
-html.markdown-dark .markdown-toc.collapsed .markdown-toc-toggle {
-  color: #e6edf3;
-}
-
-/* Small screens: keep TOC accessible as a floating panel */
-@media (max-width: 1024px) {
-  .markdown-toc:not(.collapsed) {
-    left: 12px;
-    top: 20px;
+/* Small screens: dropdown chiếm gần hết bề ngang */
+@media (max-width: 600px) {
+  .markdown-toc-list {
     width: min(280px, calc(100vw - 24px));
-    max-height: calc(100vh - 40px);
   }
 }
 
@@ -753,21 +725,23 @@ html.markdown-dark .markdown-task-progress.all-done { color: #3fb950; border-col
 
 /* Print / Save as PDF floating button */
 .markdown-print {
-  position: fixed;
-  top: 12px;
-  right: 176px;
-  z-index: 9999;
+  position: relative;
   width: 32px;
   height: 32px;
   padding: 0;
+  margin: 0;
   border: 1px solid #d1d9e0;
   border-radius: 50%;
   background: #ffffff;
   color: #1f2328;
   box-shadow: 0 1px 3px rgba(31, 35, 40, .15);
   cursor: pointer;
-  font: 15px/30px sans-serif;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+  font: 15px/1 sans-serif;
 }
 .markdown-print:hover { background: #f6f8fa; }
 html.markdown-dark .markdown-print { border-color: #30363d; background: #21262d; color: #e6edf3; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }

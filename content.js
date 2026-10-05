@@ -42,6 +42,10 @@
     const used = Object.create(null);
     const headings = root.querySelectorAll("h1, h2, h3, h4, h5, h6");
     headings.forEach((h) => {
+      // Lưu text gốc để TOC dùng (tránh bị dính ký tự '#' của anchor chèn sau)
+      if (typeof h.dataset.mdvHeading !== "string") {
+        h.dataset.mdvHeading = (h.textContent || "").trim();
+      }
       if (h.id) {
         used[h.id] = (used[h.id] || 0) + 1;
         return;
@@ -60,7 +64,7 @@
   };
 
   // --- TOC ---
-  const buildToc = (main) => {
+  const buildToc = (main, topbar) => {
     const headings = main.querySelectorAll("h1, h2, h3, h4, h5, h6");
     if (headings.length < 2) return null;
 
@@ -79,9 +83,14 @@
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "markdown-toc-toggle";
-    toggle.setAttribute("aria-label", "Collapse table of contents");
-    toggle.setAttribute("title", "Collapse table of contents");
-    toggle.textContent = "\u00AB"; // «
+    toggle.setAttribute("aria-label", "Toggle table of contents");
+    toggle.setAttribute("title", "Toggle table of contents");
+    toggle.innerHTML = 
+      '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">' +
+      '<rect x="2" y="3"  width="12" height="2" rx="0.6" fill="currentColor"/>' +
+      '<rect x="2" y="7"  width="12" height="2" rx="0.6" fill="currentColor"/>' +
+      '<rect x="2" y="11" width="12" height="2" rx="0.6" fill="currentColor"/>' +
+      '</svg>';
     header.appendChild(toggle);
 
     nav.appendChild(header);
@@ -105,8 +114,9 @@
 
       const a = document.createElement("a");
       a.href = "#" + h.id;
-      a.textContent = h.textContent || "";
-      a.title = h.textContent || "";
+      const label = (h.dataset.mdvHeading || h.textContent || "").trim();
+      a.textContent = label;
+      a.title = label;
 
       a.addEventListener("click", (ev) => {
         ev.preventDefault();
@@ -115,8 +125,8 @@
         target.scrollIntoView({ behavior: "smooth", block: "start" });
         history.replaceState(null, "", "#" + h.id);
         setActive(h.id);
-        // Đánh dấu đã chọn mục — dùng để auto-collapse khi click ra ngoài
-        nav.dataset.mdvPicked = "1";
+        // Auto-collapse panel sau khi chọn mục (giống hành vi drawer)
+        setOpen(false);
       });
 
       li.appendChild(a);
@@ -140,13 +150,18 @@
       headings.forEach((h) => observer.observe(h));
     }
 
-    // Collapse state
-    const applyCollapsed = (collapsed) => {
-      nav.classList.toggle("collapsed", collapsed);
-      toggle.textContent = collapsed ? "\u00BB" : "\u00AB"; // » : «
-      const label = collapsed ? "Expand table of contents" : "Collapse table of contents";
+    // Open/close state (giờ là dropdown, không còn cột trái cố định)
+    const applyOpen = (open) => {
+      nav.classList.toggle("open", open);
+      const label = open ? "Close table of contents" : "Open table of contents";
       toggle.setAttribute("aria-label", label);
       toggle.setAttribute("title", label);
+    };
+    // Alias cũ để các call-site cũ vẫn chạy (dùng chung 1 state)
+    const applyCollapsed = (collapsed) => applyOpen(!collapsed);
+    const setOpen = (open) => {
+      nav.dataset.mdvOpen = open ? "1" : "0";
+      applyOpen(open);
     };
 
     const readCollapsed = () =>
@@ -181,12 +196,15 @@
     let collapsed = false;
     readCollapsed().then((v) => {
       collapsed = v;
-      applyCollapsed(collapsed);
+      // Lần đầu: nếu user chưa từng mở thì giữ panel đóng (chỉ hiện nút)
+      setOpen(!collapsed);
     });
 
     toggle.addEventListener("click", () => {
-      collapsed = !collapsed;
-      applyCollapsed(collapsed);
+      const nextOpen = !nav.classList.contains("open");
+      // Lưu trạng thái "collapsed" = panel đang đóng
+      collapsed = !nextOpen;
+      setOpen(nextOpen);
       writeCollapsed(collapsed);
     });
 
@@ -196,15 +214,14 @@
       if (linkById.has(id)) setActive(id);
     }
 
-    // Auto-collapse khi click ra ngoài, chỉ sau khi user đã chọn 1 mục trong TOC.
+    // Đóng panel khi click ra ngoài (không tính click trong panel hoặc trên nút)
     document.addEventListener("click", (ev) => {
-      if (nav.classList.contains("collapsed")) return;
+      if (!nav.classList.contains("open")) return;
       if (nav.contains(ev.target)) return;
-      if (!nav.dataset.mdvPicked) return;
+      if (topbar && topbar.contains(ev.target)) return;
       collapsed = true;
-      applyCollapsed(true);
+      setOpen(false);
       writeCollapsed(true);
-      delete nav.dataset.mdvPicked;
     });
 
     return nav;
@@ -802,7 +819,7 @@
   };
 
   // --- Print to PDF button ---
-  const createPrintButton = () => {
+  const createPrintButton = (parent) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'markdown-print';
@@ -810,7 +827,7 @@
     button.setAttribute('aria-label', 'Print / Save as PDF');
     button.setAttribute('title', 'Print / Save as PDF');
     button.addEventListener('click', () => window.print());
-    document.body.appendChild(button);
+    (parent || document.body).appendChild(button);
     return button;
   };
 
@@ -906,13 +923,32 @@
   };
 
   const applyThemeToButton = (button, dark) => {
-    button.textContent = dark ? "\u2600" : "\u263E"; // ☀ : ☾
+    if (dark) {
+      button.innerHTML =
+        '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">' +
+        '<circle cx="8" cy="8" r="3.2" fill="currentColor"/>' +
+        '<g stroke="currentColor" stroke-width="1.4" stroke-linecap="round">' +
+        '<line x1="8" y1="1.2" x2="8" y2="2.6"/>' +
+        '<line x1="8" y1="13.4" x2="8" y2="14.8"/>' +
+        '<line x1="1.2" y1="8" x2="2.6" y2="8"/>' +
+        '<line x1="13.4" y1="8" x2="14.8" y2="8"/>' +
+        '<line x1="3.2" y1="3.2" x2="4.2" y2="4.2"/>' +
+        '<line x1="11.8" y1="11.8" x2="12.8" y2="12.8"/>' +
+        '<line x1="3.2" y1="12.8" x2="4.2" y2="11.8"/>' +
+        '<line x1="11.8" y1="4.2" x2="12.8" y2="3.2"/>' +
+        '</g></svg>';
+    } else {
+      button.innerHTML =
+        '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">' +
+        '<path d="M6 2a6 6 0 1 0 8 8A7 7 0 0 1 6 2z" fill="currentColor"/>' +
+        '</svg>';
+    }
     const label = dark ? "Switch to light mode" : "Switch to dark mode";
     button.setAttribute("aria-label", label);
     button.setAttribute("title", label);
   };
 
-  const createThemeToggle = (dark) => {
+  const createThemeToggle = (dark, parent) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "markdown-theme-toggle";
@@ -924,7 +960,8 @@
       writeTheme(next);
     });
 
-    document.body.appendChild(button);
+    (parent || document.body).appendChild(button);
+    return button;
   };
 
   // --- Fallback UI khi renderer không load được ---
@@ -981,10 +1018,19 @@
     }
 
     postProcess(main);
-    const toc = buildToc(main);
-    if (toc) document.body.appendChild(toc);
 
-    createThemeToggle(dark);
+    // Topbar góc phải: <TOC> <PRINT> <THEME>
+    const topbar = document.createElement("div");
+    topbar.className = "markdown-topbar";
+    document.body.appendChild(topbar);
+
+    // TOC được append vào topbar (thứ tự: TOC trước)
+    const toc = buildToc(main, topbar);
+    if (toc) topbar.appendChild(toc);
+
+    createPrintButton(topbar);
+    createThemeToggle(dark, topbar);
+
     createReadingProgress();
     createBackToTop();
 
@@ -998,7 +1044,6 @@
       createStatsFooter(main);
     }
     installScrollMemory();
-    createPrintButton();
     window.__mdvToggleLineNumbers = toggleLineNumbers;
 
     installShortcuts(
