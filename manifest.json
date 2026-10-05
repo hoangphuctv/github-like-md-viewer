@@ -1,15 +1,33 @@
 {
   "manifest_version": 3,
   "name": "GitHub-like Markdown Viewer",
-  "version": "0.6.0",
+  "version": "0.6.2",
   "description": "Render local Markdown files with a GitHub-like reading experience.",
   "content_scripts": [
     {
-      "matches": ["file:///*.md", "file:///*.markdown", "file:///*.mdown", "file:///*.mkd"],
-      "js": ["vendor/marked.umd.js", "vendor/purify.min.js", "content.js"],
-      "css": ["github-markdown.css"],
+      "matches": [
+        "file:///*"
+      ],
+      "include_globs": [
+        "*.md",
+        "*.markdown",
+        "*.mdown",
+        "*.mkd",
+        "*.MD",
+        "*.MARKDOWN"
+      ],
+      "js": [
+        "vendor/marked.umd.js",
+        "vendor/purify.min.js",
+        "content.js"
+      ],
+      "css": [
+        "github-markdown.css"
+      ],
       "run_at": "document_idle"
     }
   ],
-  "permissions": ["storage"]
+  "permissions": [
+    "storage"
+  ]
 }

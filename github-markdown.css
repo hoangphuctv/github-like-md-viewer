@@ -801,3 +801,23 @@ html.markdown-focus .markdown-task-progress { display: none !important; }
   .markdown-task-progress { right: 52px; }
   .markdown-print { display: none; }
 }
+
+/* --- Error banner (khi renderer fail to load) --- */
+.markdown-error-banner {
+  max-width: 980px;
+  margin: 16px auto 0;
+  padding: 12px 16px;
+  border: 1px solid #d0a000;
+  background: #fff8dc;
+  color: #6b4c00;
+  border-radius: 6px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+html.markdown-dark .markdown-error-banner {
+  border-color: #8a6d00;
+  background: #3a2d00;
+  color: #ffdc73;
+}

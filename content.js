@@ -927,33 +927,62 @@
     document.body.appendChild(button);
   };
 
+  // --- Fallback UI khi renderer không load được ---
+  const showErrorBanner = (message) => {
+    const banner = document.createElement("div");
+    banner.className = "markdown-error-banner";
+    banner.setAttribute("role", "alert");
+    banner.textContent = message;
+    if (document.body) document.body.insertBefore(banner, document.body.firstChild);
+  };
+
   const render = (dark) => {
     const originalTitle = document.title || location.pathname.split("/").pop() || "Markdown";
     const source = getSource();
     const html = renderMarkdown(source);
 
-    document.open();
-    document.write(
-      '<!doctype html>\n' +
-        '<html' + (dark ? ' class="markdown-dark"' : "") + '>\n' +
-        "<head>\n" +
-        '  <meta charset="utf-8">\n' +
-        '  <meta name="viewport" content="width=device-width, initial-scale=1">\n' +
-        "  <title>" + escapeHtml(originalTitle) + "</title>\n" +
-        "</head>\n" +
-        "<body>\n" +
-        '  <main class="markdown-body">' + html + "</main>\n" +
-        "</body>\n" +
-        "</html>"
-    );
-    document.close();
+    // MV3 content script KHÔNG được dùng document.open()/write() sau khi
+    // document đã load — thay bằng thao tác DOM thuần.
+    document.documentElement.classList.toggle("markdown-dark", !!dark);
+    document.title = originalTitle;
 
-    const main = document.querySelector("main.markdown-body");
-    if (main) {
-      postProcess(main);
-      const toc = buildToc(main);
-      if (toc) document.body.appendChild(toc);
+    // Đảm bảo có meta charset + viewport (một số trình duyệt tự thêm, một số không).
+    if (!document.querySelector('meta[charset]')) {
+      const metaCharset = document.createElement("meta");
+      metaCharset.setAttribute("charset", "utf-8");
+      document.head.insertBefore(metaCharset, document.head.firstChild);
     }
+    if (!document.querySelector('meta[name="viewport"]')) {
+      const metaViewport = document.createElement("meta");
+      metaViewport.setAttribute("name", "viewport");
+      metaViewport.setAttribute("content", "width=device-width, initial-scale=1");
+      document.head.appendChild(metaViewport);
+    }
+
+    // Thay thế nội dung body nhưng KHÔNG dùng document.write.
+    const body = document.body;
+    if (!body) {
+      showErrorBanner("GitHub-like Markdown Viewer: <body> chưa sẵn sàng.");
+      return;
+    }
+    while (body.firstChild) body.removeChild(body.firstChild);
+
+    const main = document.createElement("main");
+    main.className = "markdown-body";
+    main.innerHTML = html;
+    body.appendChild(main);
+
+    const markedLib = (typeof marked !== "undefined" && marked) || null;
+    if (!markedLib) {
+      showErrorBanner(
+        "GitHub-like Markdown Viewer: không tải được thư viện marked. " +
+          "File vendor/marked.umd.js có thể bị thiếu trong bản cài đặt."
+      );
+    }
+
+    postProcess(main);
+    const toc = buildToc(main);
+    if (toc) document.body.appendChild(toc);
 
     createThemeToggle(dark);
     createReadingProgress();
